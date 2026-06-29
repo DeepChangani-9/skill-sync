@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Skill Sync</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 26px 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: top; }
+    th { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:hover td { background: var(--soft); }
+    .plan-chip { background: #eff6ff; color: var(--brand); padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    :root[data-theme="dark"] .plan-chip { background: rgba(59,130,246,.15); }
+    .role-chip { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+    .role-chip.teacher { background: rgba(13,148,136,.15); color: var(--accent); }
+    .role-chip.student { background: rgba(245,158,11,.16); color: #b45309; }
+    .role-chip.none { background: var(--soft); color: var(--muted); }
+    .st { font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+    .st.ok { background: #f0fdf4; color: var(--good); } .st.pend { background: #fffbeb; color: #b45309; }
+    .mini { padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none; cursor: pointer; }
+    .mini.primary { background: var(--brand); color: #fff; }
+    .mini.ghost { background: var(--soft); border: 1px solid var(--line); color: var(--ink); }
+    .mini.danger { background: #fef2f2; border: 1px solid #fecaca; color: var(--bad); }
+    #msg { font-size: 13px; color: var(--bad); margin-top: 8px; }
+    /* stat cards */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; margin-top: 6px; }
+    .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+    .stat .n { font-size: 30px; font-weight: 800; line-height: 1; }
+    .stat .l { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    /* left-sidebar layout */
+    .adm-layout { display: flex; gap: 18px; align-items: flex-start; margin-top: 14px; }
+    .adm-tabs { display: flex; flex-direction: column; gap: 6px; width: 210px; flex-shrink: 0; position: sticky; top: 14px; }
+    .adm-tabs button { display: block; width: 100%; text-align: left; padding: 11px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-weight: 700; font-size: 14px; cursor: pointer; }
+    .adm-tabs button:hover { background: var(--soft); }
+    .adm-tabs button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .adm-main { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); }
+    .sec { display: none; } .sec.on { display: block; }
+    @media (max-width: 760px) {
+      .adm-layout { flex-direction: column; }
+      .adm-tabs { flex-direction: row; flex-wrap: wrap; width: 100%; position: static; }
+      .adm-tabs button { width: auto; }
+    }
+    /* chat log */
+    .chat-room { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 12px; background: var(--panel); }
+    .chat-room h4 { margin: 0 0 4px; }
+    .chat-room .pair { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .bub { padding: 7px 11px; border-radius: 10px; margin: 5px 0; font-size: 13.5px; max-width: 80%; }
+    .bub.teacher { background: rgba(13,148,136,.12); }
+    .bub.learner, .bub.student { background: rgba(245,158,11,.13); margin-left: auto; }
+    .bub .who { font-size: 11px; color: var(--muted); font-weight: 700; }
+    .bub.expired { opacity: .6; }
+    .exp-tag { font-size: 10px; color: var(--bad); margin-left: 6px; }
+    .det { font-size: 12.5px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">⇄</span><span>Skill<b>Sync</b> · Admin</span></div>
+    <div class="topbar-right"><a class="logout-btn" href="/">← Back to site</a></div>
+  </header>
+
+  <div class="wrap">
+    <div class="card" id="gate">
+      <h2>Admin login</h2>
+      <p class="muted">This dashboard is for the owner only. Enter your admin passcode.</p>
+      <form id="gateForm" class="row" style="margin-top:12px">
+        <input type="password" id="pass" placeholder="Admin passcode" autocomplete="current-password" />
+        <button class="primary">Open dashboard</button>
+      </form>
+      <p id="msg"></p>
+    </div>
+
+    <div class="hidden" id="panel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">📊 Admin dashboard</h2>
+        <span class="row" style="gap:8px">
+          <button class="mini ghost" id="refreshBtn">↻ Refresh</button>
+          <button class="mini danger" id="logoutBtn">Lock</button>
+        </span>
+      </div>
+
+      <div class="adm-layout">
+        <div class="adm-tabs" id="admTabs">
+          <button data-sec="overview" class="on">📊 Overview</button>
+          <button data-sec="users">👥 All users</button>
+          <button data-sec="teachers">🧑‍🏫 Teachers</button>
+          <button data-sec="students">🧑‍🎓 Students</button>
+          <button data-sec="certs">🎓 Certificates</button>
+          <button data-sec="pairs">🔗 Student → Teacher</button>
+          <button data-sec="chats">💬 Chats</button>
+          <button data-sec="calls">📹 Video calls</button>
+          <button data-sec="orders">🧾 Orders / requests</button>
+        </div>
+
+        <div class="adm-main">
+          <div class="sec on" id="sec-overview"></div>
+          <div class="sec" id="sec-users"></div>
+          <div class="sec" id="sec-teachers"></div>
+          <div class="sec" id="sec-students"></div>
+          <div class="sec" id="sec-certs"></div>
+          <div class="sec" id="sec-pairs"></div>
+          <div class="sec" id="sec-chats"></div>
+          <div class="sec" id="sec-calls"></div>
+          <div class="sec" id="sec-orders"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">© <span id="y"></span> Skill Sync — Peer Learning Platform.</footer>
+
+  <script>
+    document.getElementById("y").textContent = new Date().getFullYear();
+    document.documentElement.dataset.theme = localStorage.getItem("skillsync_theme") || "light";
+    const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const $ = id => document.getElementById(id);
+    let DATA = null;
+
+    function fmt(ts) {
+      if (!ts) return "—";
+      const d = new Date(typeof ts === "number" ? ts : (String(ts).includes("T") ? ts : ts.replace(" ", "T") + "Z"));
+      return isNaN(d) ? String(ts) : d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    }
+    const isStudent = r => r === "student" || r === "learner";
+
+    async function load(pass) {
+      $("msg").textContent = "";
+      try {
+        const res = await fetch("/api/admin/data?pass=" + encodeURIComponent(pass));
+        const d = await res.json();
+        if (!d.ok) { $("msg").textContent = d.error || "Could not load."; return; }
+        localStorage.setItem("skillsync_admin", pass);
+        DATA = d;
+        $("gate").classList.add("hidden");
+        $("panel").classList.remove("hidden");
+        renderAll();
+      } catch { $("msg").textContent = "Network error — is the server running?"; }
+    }
+
+    function renderAll() {
+      const c = DATA.counts;
+      $("sec-overview").innerHTML = `
+        <div class="stat-grid">
+          <div class="stat"><div class="n">${c.total}</div><div class="l">Total users</div></div>
+          <div class="stat"><div class="n">${c.teachers}</div><div class="l">Teachers</div></div>
+          <div class="stat"><div class="n">${c.students}</div><div class="l">Students</div></div>
+          <div class="stat"><div class="n">${c.certs}</div><div class="l">Certificates</div></div>
+          <div class="stat"><div class="n">${c.plans}</div><div class="l">Active plans</div></div>
+          <div class="stat"><div class="n">${c.orders}</div><div class="l">Orders</div></div>
+          <div class="stat"><div class="n">${c.rooms}</div><div class="l">Chat rooms</div></div>
+          <div class="stat"><div class="n">${c.calls || 0}</div><div class="l">Video calls</div></div>
+        </div>
+        <p class="muted small" style="margin-top:14px">Students see chat for 7 days then it auto-deletes for them — but the admin log here keeps every message forever. Teachers cannot be deleted; only students can.</p>`;
+
+      // ---- All users ----
+      $("sec-users").innerHTML = DATA.users.length ? `
+        <table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Plan</th><th>Joined</th><th>Recovery Q</th><th>Action</th></tr></thead>
+        <tbody>${DATA.users.map(u => `
+          <tr>
+            <td><b>${esc(u.username)}</b></td>
+            <td>${esc(u.name)}</td>
+            <td><span class="role-chip ${isStudent(u.role) ? "student" : (u.role === "teacher" ? "teacher" : "none")}">${esc(u.role)}</span></td>
+            <td><span class="plan-chip">${esc(u.plan)}</span></td>
+            <td class="det">${esc(fmt(u.created))}</td>
+            <td class="det">${esc(u.question || "—")}</td>
+            <td>${isStudent(u.role)
+              ? `<button class="mini danger" data-del-email="${esc(u.username)}">Delete student</button>`
+              : `<span class="det">—</span>`}</td>
+          </tr>`).join("")}</tbody></table>` : `<p class="muted">No users yet.</p>`;
+
+      // ---- Teachers (certs, plan, details, chats) ----
+      $("sec-teachers").innerHTML = DATA.teachers.length ? DATA.teachers.map(t => {
+        const myChats = DATA.chats.filter(r => (r.teacherName || "").toLowerCase() === (t.name || "").toLowerCase());
+        return `<div class="chat-room">
+          <h4>🧑‍🏫 ${esc(t.name)} <span class="det">(@${esc(t.username)})</span></h4>
+          <div class="pair">Plan: <b>${esc(t.plan)}</b> · Joined ${esc(fmt(t.created))} · Certificates: <b>${t.certs.length}</b></div>
+          ${t.certs.length ? `<div class="det">🎓 ${t.certs.map(c => esc(c.topic) + " (" + esc(c.code) + ")").join(", ")}</div>` : `<div class="det">No certificates yet.</div>`}
+          <div class="det" style="margin-top:6px">💬 In ${myChats.length} chat room(s): ${myChats.map(r => esc(r.room) + " with " + esc(r.studentName || "—")).join(", ") || "—"}</div>
+        </div>`;
+      }).join("") : `<p class="muted">No teachers yet.</p>`;
+
+      // ---- Students (details, chosen teacher, chats) ----
+      $("sec-students").innerHTML = DATA.students.length ? DATA.students.map(s => {
+        const myPairs = DATA.pairings.filter(p => (p.studentAccount || "").toLowerCase() === (s.username || "").toLowerCase() || (p.studentName || "").toLowerCase() === (s.name || "").toLowerCase());
+        const teachers = [...new Set(myPairs.map(p => p.teacherName).filter(Boolean))];
+        const myChats = DATA.chats.filter(r => (r.studentName || "").toLowerCase() === (s.name || "").toLowerCase());
+        return `<div class="chat-room">
+          <h4>🧑‍🎓 ${esc(s.name)} <span class="det">(@${esc(s.username)})</span>
+            <button class="mini danger" style="float:right" data-del-email="${esc(s.username)}">Delete student</button></h4>
+          <div class="pair">Plan: <b>${esc(s.plan)}</b> · Joined ${esc(fmt(s.created))}</div>
+          <div class="det">🧑‍🏫 Chose teacher: <b>${teachers.length ? teachers.map(esc).join(", ") : "—"}</b>${myPairs.length && myPairs[0].topic ? " · Topic: " + esc(myPairs[0].topic) : ""}</div>
+          <div class="det" style="margin-top:6px">💬 In ${myChats.length} chat room(s): ${myChats.map(r => esc(r.room) + " with " + esc(r.teacherName || "—")).join(", ") || "—"}</div>
+        </div>`;
+      }).join("") : `<p class="muted">No students yet.</p>`;
+
+      // ---- Certificates: who earned what, and for which course ----
+      $("sec-certs").innerHTML = (DATA.certs && DATA.certs.length) ? `
+        <p class="muted small" style="margin:0 0 6px">${DATA.certs.length} certificate(s) issued.</p>
+        <table><thead><tr><th>#</th><th>Who earned it</th><th>Course</th><th>Certificate ID</th><th>Date</th></tr></thead>
+        <tbody>${DATA.certs.map((c, i) => `
+          <tr>
+            <td class="det">${i + 1}</td>
+            <td><b>🎓 ${esc(c.name || "—")}</b></td>
+            <td><span class="plan-chip">${esc(c.topic || "—")}</span></td>
+            <td class="det">${esc(c.code)}</td>
+            <td class="det">${esc(c.date ? fmt(c.date) : "—")}</td>
+          </tr>`).join("")}</tbody></table>` : `<p class="muted">No certificates issued yet.</p>`;
+
+      // ---- Student -> Teacher pairings ----
+      $("sec-pairs").innerHTML = DATA.pairings.length ? `
+        <table><thead><tr><th>Student</th><th>chose Teacher</th><th>Topic</th><th>Fee</th><th>Room</th><th>Last active</th></tr></thead>
+        <tbody>${DATA.pairings.map(p => `
+          <tr>
+            <td><b>${esc(p.studentName || "—")}</b>${p.studentAccount ? ` <span class="det">@${esc(p.studentAccount)}</span>` : ""}</td>
+            <td>🧑‍🏫 ${esc(p.teacherName || "—")}${p.teacherAccount ? ` <span class="det">@${esc(p.teacherAccount)}</span>` : ""}</td>
+            <td>${esc(p.topic || "—")}</td>
+            <td>${p.free ? "Free" : (p.fee != null ? "₹" + esc(p.fee) : "—")}</td>
+            <td class="det">${esc(p.room)}</td>
+            <td class="det">${esc(fmt(p.lastSeen))}</td>
+          </tr>`).join("")}</tbody></table>` : `<p class="muted">No student–teacher pairings recorded yet.</p>`;
+
+      // ---- Chats (full, permanent) ----
+      $("sec-chats").innerHTML = DATA.chats.length ? DATA.chats.map(r => `
+        <div class="chat-room">
+          <h4>Room ${esc(r.room)}</h4>
+          <div class="pair">🧑‍🏫 ${esc(r.teacherName || "Teacher")} ↔ 🧑‍🎓 ${esc(r.studentName || "Student")} · ${r.messages.length} message(s)</div>
+          ${r.messages.map(m => `
+            <div class="bub ${esc(m.from)} ${m.expired ? "expired" : ""}">
+              <span class="who">${esc(m.name || m.from)} · ${esc(fmt(m.ts))}${m.expired ? '<span class="exp-tag">expired for users</span>' : ""}</span><br>
+              ${esc(m.text)}
+            </div>`).join("")}
+        </div>`).join("") : `<p class="muted">No chats yet.</p>`;
+
+      // ---- Video calls: which student ↔ which teacher, start & end ----
+      const dur = s => s == null ? "" : (s >= 60 ? Math.floor(s / 60) + "m " + (s % 60) + "s" : s + "s");
+      $("sec-calls").innerHTML = (DATA.calls && DATA.calls.length) ? `
+        <p class="muted small" style="margin:0 0 6px">${DATA.calls.length} video call(s) logged.</p>
+        <table><thead><tr><th>Student</th><th>Teacher</th><th>Started by</th><th>Started</th><th>Ended</th><th>Duration</th><th>Room</th></tr></thead>
+        <tbody>${DATA.calls.map(c => `
+          <tr>
+            <td><b>🧑‍🎓 ${esc(c.studentName || "—")}</b></td>
+            <td>🧑‍🏫 ${esc(c.teacherName || "—")}</td>
+            <td><span class="role-chip ${isStudent(c.startedBy) ? "student" : (c.startedBy === "teacher" ? "teacher" : "none")}">${esc(c.startedBy || "—")}</span></td>
+            <td class="det">${esc(fmt(c.startTs))}</td>
+            <td class="det">${c.endTs ? esc(fmt(c.endTs)) : '<span class="st pend">ongoing</span>'}</td>
+            <td class="det">${esc(dur(c.durationSec))}</td>
+            <td class="det">${esc(c.room)}</td>
+          </tr>`).join("")}</tbody></table>` : `<p class="muted">No video calls yet. They appear here when a teacher or student starts a call.</p>`;
+
+      // ---- Orders / requests ----
+      $("sec-orders").innerHTML = DATA.orders.length ? `
+        <table><thead><tr><th>Date</th><th>Plan</th><th>Name</th><th>Account email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${DATA.orders.map(o => {
+          const approved = o.status === "approved";
+          const acc = DATA.users.find(u => u.username === (o.email || "").toLowerCase());
+          const canDelete = !acc || isStudent(acc.role);  // delete requests for students only
+          return `<tr>
+            <td class="det">${esc(fmt(o.ts || o.date))}</td>
+            <td><span class="plan-chip">${esc(o.plan)}</span></td>
+            <td>${esc(o.name)}</td>
+            <td>${esc(o.email || "—")}</td>
+            <td>${esc(o.contact || "—")}</td>
+            <td><span class="st ${approved ? "ok" : "pend"}">${approved ? "Approved" : "Pending"}</span></td>
+            <td>${approved
+              ? `<button class="mini ghost" data-revoke="${esc(o.id)}">Revoke</button>`
+              : `<button class="mini primary" data-approve="${esc(o.id)}">Approve</button>`}
+              ${canDelete ? `<button class="mini danger" data-del-id="${esc(o.id)}" data-del-email="${esc(o.email || "")}">Delete</button>` : ""}
+            </td>
+          </tr>`;
+        }).join("")}</tbody></table>` : `<p class="muted">No orders yet. They appear here when someone buys a plan on the pricing page.</p>`;
+    }
+
+    // Section tabs
+    $("admTabs").addEventListener("click", e => {
+      const b = e.target.closest("[data-sec]"); if (!b) return;
+      document.querySelectorAll(".adm-tabs button").forEach(x => x.classList.toggle("on", x === b));
+      document.querySelectorAll(".sec").forEach(s => s.classList.toggle("on", s.id === "sec-" + b.dataset.sec));
+    });
+
+    // Actions (approve / revoke / delete) — delegated across the whole panel
+    $("panel").addEventListener("click", async (e) => {
+      const pass = localStorage.getItem("skillsync_admin") || "";
+      const del = e.target.closest("[data-del-email],[data-del-id]");
+      if (del) {
+        const email = del.getAttribute("data-del-email") || "";
+        const id = del.getAttribute("data-del-id") || "";
+        const who = email || ("order " + id);
+        if (!confirm(`Delete student "${who}"?\nThis removes their account, plan and orders. Teachers cannot be deleted. This cannot be undone.`)) return;
+        del.disabled = true;
+        try {
+          const res = await fetch("/api/customer/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, email, pass }) });
+          const d = await res.json();
+          if (!d.ok) { alert(d.error || "Failed."); del.disabled = false; return; }
+          load(pass);
+        } catch { alert("Network error."); del.disabled = false; }
+        return;
+      }
+      const ap = e.target.closest("[data-approve]"), rv = e.target.closest("[data-revoke]");
+      if (!ap && !rv) return;
+      const btn = ap || rv;
+      const id = btn.getAttribute(ap ? "data-approve" : "data-revoke");
+      btn.disabled = true;
+      try {
+        const res = await fetch("/api/order/" + (ap ? "approve" : "revoke"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, pass }) });
+        const d = await res.json();
+        if (!d.ok) { alert(d.error || "Failed."); btn.disabled = false; return; }
+        load(pass);
+      } catch { alert("Network error."); btn.disabled = false; }
+    });
+
+    $("refreshBtn").addEventListener("click", () => load(localStorage.getItem("skillsync_admin") || ""));
+    $("logoutBtn").addEventListener("click", () => { localStorage.removeItem("skillsync_admin"); location.reload(); });
+    $("gateForm").addEventListener("submit", e => { e.preventDefault(); load($("pass").value); });
+    const saved = localStorage.getItem("skillsync_admin");
+    if (saved) load(saved);
+  </script>
+</body>
+</html>
