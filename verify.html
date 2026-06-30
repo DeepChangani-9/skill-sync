@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify a Certificate — Skill Sync</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .verify-wrap { max-width: 560px; margin: 0 auto; padding: 40px 22px; }
+    .result { margin-top: 18px; }
+    .result .big { font-size: 22px; font-weight: 800; }
+    .ok { color: var(--good); }
+    .bad { color: var(--bad); }
+    .cert-detail { margin-top: 12px; }
+    .cert-detail .kv b { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .cert-detail .kv { margin: 8px 0; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">⇄</span><span>Skill<b>Sync</b></span></div>
+    <div class="topbar-right"><a class="theme-toggle" href="/app" title="Open app" style="text-decoration:none;display:grid;place-items:center">⌂</a></div>
+  </header>
+
+  <div class="verify-wrap">
+    <div class="card">
+      <h2>Verify a certificate</h2>
+      <p class="muted">Enter the Certificate ID printed on the certificate (e.g. <b>SS-AB12CD</b>) to confirm it's genuine.</p>
+      <form id="verifyForm" class="row" style="margin-top:14px">
+        <input type="text" id="codeInput" placeholder="SS-XXXXXX" autocomplete="off" />
+        <button class="primary">Verify</button>
+      </form>
+      <div class="result" id="result"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">© <span id="y"></span> Skill Sync — Peer Learning Platform.</footer>
+
+  <script>
+    document.getElementById("y").textContent = new Date().getFullYear();
+    document.documentElement.dataset.theme = localStorage.getItem("skillsync_theme") || "light";
+    // Allow ?code=SS-XXXX deep links
+    const params = new URLSearchParams(location.search);
+    const pre = params.get("code");
+    if (pre) document.getElementById("codeInput").value = pre;
+
+    async function verify(code) {
+      const out = document.getElementById("result");
+      code = (code || "").trim().toUpperCase();
+      if (!code) { out.innerHTML = ""; return; }
+      out.innerHTML = `<p class="muted">Checking…</p>`;
+      try {
+        const r = await fetch("/api/verify?code=" + encodeURIComponent(code));
+        const d = await r.json();
+        if (d.valid) {
+          out.innerHTML = `
+            <div class="big ok">✓ Valid certificate</div>
+            <div class="cert-detail">
+              <div class="kv"><b>Name</b>${escapeHtml(d.name)}</div>
+              <div class="kv"><b>Topic</b>${escapeHtml(d.topic)}</div>
+              <div class="kv"><b>Issued on</b>${escapeHtml(d.date)}</div>
+              <div class="kv"><b>Certificate ID</b>${escapeHtml(d.code)}</div>
+            </div>`;
+        } else {
+          out.innerHTML = `<div class="big bad">✗ No certificate found</div>
+            <p class="muted">This ID doesn't match any certificate we issued.</p>`;
+        }
+      } catch {
+        out.innerHTML = `<div class="big bad">Couldn't reach the server.</div>`;
+      }
+    }
+    function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+    document.getElementById("verifyForm").addEventListener("submit", e => { e.preventDefault(); verify(document.getElementById("codeInput").value); });
+    if (pre) verify(pre);
+  </script>
+</body>
+</html>

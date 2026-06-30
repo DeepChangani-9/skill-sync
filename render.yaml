@@ -1,0 +1,11 @@
+# Render.com Blueprint — deploys Skill Sync as a free web service.
+# In Render: New → Blueprint → pick your repo. It reads this file automatically.
+services:
+  - type: web
+    name: skill-sync
+    runtime: node
+    plan: free
+    buildCommand: ""          # nothing to build — dependency-free
+    startCommand: node server.js
+    autoDeploy: true
+    # Render provides PORT automatically; server.js already reads process.env.PORT.
